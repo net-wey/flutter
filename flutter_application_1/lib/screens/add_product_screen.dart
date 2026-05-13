@@ -1,13 +1,17 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'dart:io';
+import 'package:provider/provider.dart';
+
 import '../providers/app_state.dart';
 
 class AddProductScreen extends StatefulWidget {
+  const AddProductScreen({super.key});
+
   @override
-  _AddProductScreenState createState() => _AddProductScreenState();
+  State<AddProductScreen> createState() => _AddProductScreenState();
 }
 
 class _AddProductScreenState extends State<AddProductScreen> {
@@ -19,9 +23,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   bool _isLoading = false;
   final ImagePicker _picker = ImagePicker();
 
-  // Метод для выбора изображения (камера или галерея)
   Future<void> _pickImage() async {
-    // Показываем диалог выбора
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -66,30 +68,26 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  // Получить фото с камеры
   Future<void> _getImageFromCamera() async {
-    // Проверяем разрешение для камеры
     final status = await Permission.camera.request();
 
     if (!status.isGranted) {
       if (status.isPermanentlyDenied) {
+        if (!mounted) return;
         _showOpenSettingsDialog('камеры');
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Нужен доступ к камере')));
+        if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Нужен доступ к камере')));
       }
       return;
     }
 
-    // Запрашиваем фото
     final XFile? image = await _picker.pickImage(source: ImageSource.camera);
     if (image != null) {
       setState(() => _selectedImagePath = image.path);
     }
   }
 
-  // Выбрать из галереи
   Future<void> _getImageFromGallery() async {
     if (Platform.isAndroid) {
       await _requestAndroidGalleryPermission();
@@ -101,8 +99,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
   }
 
-  // Android: пробуем запросить права, но не блокируем системный пикер.
-  // На Android 13+ он может работать без выдачи полного разрешения.
   Future<void> _requestAndroidGalleryPermission() async {
     final photosStatus = await Permission.photos.request();
     if (photosStatus.isGranted || photosStatus.isLimited) {
@@ -119,10 +115,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Полный доступ к фото отключен'),
-          action: SnackBarAction(
-            label: 'Настройки',
-            onPressed: openAppSettings,
-          ),
+          action: SnackBarAction(label: 'Настройки', onPressed: openAppSettings),
         ),
       );
     }
@@ -133,12 +126,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: Text('Доступ к $type заблокирован'),
-        content: Text('Разрешите доступ в настройках телефона'),
+        content: const Text('Разрешите доступ в настройках телефона'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
@@ -151,26 +141,27 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  void _save() async {
-    if (_formKey.currentState!.validate()) {
-      if (_selectedImagePath == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Пожалуйста, выберите изображение')),
-        );
-        return;
-      }
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
 
-      setState(() => _isLoading = true);
-
-      context.read<AppState>().addProduct(
-        _nameCtrl.text,
-        _descCtrl.text,
-        _selectedImagePath!,
+    if (_selectedImagePath == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Пожалуйста, выберите изображение')),
       );
-
-      setState(() => _isLoading = false);
-      Navigator.pop(context);
+      return;
     }
+
+    setState(() => _isLoading = true);
+
+    await context.read<AppState>().addProduct(
+          _nameCtrl.text.trim(),
+          _descCtrl.text.trim(),
+          _selectedImagePath!,
+        );
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+    Navigator.pop(context);
   }
 
   @override
@@ -185,34 +176,22 @@ class _AddProductScreenState extends State<AddProductScreen> {
             children: [
               TextFormField(
                 controller: _nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Название',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Название', border: OutlineInputBorder()),
                 validator: (val) => val!.isEmpty ? 'Заполните поле' : null,
               ),
               const SizedBox(height: 10),
               TextFormField(
                 controller: _descCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Описание',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Описание', border: OutlineInputBorder()),
                 validator: (val) => val!.isEmpty ? 'Заполните поле' : null,
               ),
               const SizedBox(height: 20),
-
-              // Кнопка выбора изображения (та же самая)
               ElevatedButton.icon(
                 onPressed: _pickImage,
                 icon: const Icon(Icons.photo_library),
                 label: const Text('Выбрать изображение'),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
-                ),
+                style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
               ),
-
-              // Превью (без изменений)
               if (_selectedImagePath != null) ...[
                 const SizedBox(height: 20),
                 Container(
@@ -221,21 +200,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     border: Border.all(color: Colors.grey),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Image.file(
-                    File(_selectedImagePath!),
-                    fit: BoxFit.cover,
-                  ),
+                  child: Image.file(File(_selectedImagePath!), fit: BoxFit.cover),
                 ),
               ],
-
               const SizedBox(height: 20),
-
-              // Кнопка сохранения (без изменений)
               ElevatedButton(
                 onPressed: _isLoading ? null : _save,
-                child: _isLoading
-                    ? const CircularProgressIndicator()
-                    : const Text('Сохранить и сгенерировать QR'),
+                child: _isLoading ? const CircularProgressIndicator() : const Text('Сохранить и сгенерировать QR'),
               ),
             ],
           ),

@@ -1,20 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import 'providers/app_state.dart';
 import 'screens/auth_screen.dart';
 import 'screens/catalog_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final appState = AppState();
+  await appState.init();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => AppState(),
+    ChangeNotifierProvider.value(
+      value: appState,
       child: const WarehouseApp(),
     ),
   );
 }
 
 class WarehouseApp extends StatelessWidget {
-  const WarehouseApp({Key? key}) : super(key: key);
+  const WarehouseApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +37,9 @@ class WarehouseApp extends StatelessWidget {
       ),
       home: Consumer<AppState>(
         builder: (context, state, child) {
-          // Если авторизован - показываем каталог, иначе - экран входа
+          if (!state.isInitialized) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
           return state.isAuthenticated ? CatalogScreen() : AuthScreen();
         },
       ),

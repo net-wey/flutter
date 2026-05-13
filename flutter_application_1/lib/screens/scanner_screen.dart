@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
+
 import '../providers/app_state.dart';
 import 'product_detail_screen.dart';
 
@@ -69,20 +70,18 @@ class _ScannerScreenState extends State<ScannerScreen> {
     await _scannerController.stop();
     if (!mounted) return;
 
-    final product = context.read<AppState>().getProductById(code);
-    if (product == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Товар с кодом "$code" не найден')),
+    final result = await context.read<AppState>().processQrScan(code);
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message)));
+
+    if (result.success && result.product != null) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ProductDetailScreen(product: result.product!)),
       );
-      _isProcessing = false;
-      await _restartScanner();
-      return;
     }
 
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => ProductDetailScreen(product: product)),
-    );
     _isProcessing = false;
     await _restartScanner();
   }
@@ -97,10 +96,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
       SnackBar(
         content: const Text('Нужен доступ к камере для сканирования'),
         duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'Настройки',
-          onPressed: () => openAppSettings(),
-        ),
+        action: SnackBarAction(label: 'Настройки', onPressed: () => openAppSettings()),
       ),
     );
   }
@@ -112,10 +108,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         title: const Text('Доступ к камере заблокирован'),
         content: const Text('Разрешите доступ в настройках телефона'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
@@ -135,10 +128,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
       body: _hasCameraPermission
           ? Stack(
               children: [
-                MobileScanner(
-                  controller: _scannerController,
-                  onDetect: _onDetect,
-                ),
+                MobileScanner(controller: _scannerController, onDetect: _onDetect),
                 Positioned.fill(
                   child: IgnorePointer(
                     child: Center(
@@ -158,18 +148,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     alignment: Alignment.bottomCenter,
                     child: Container(
                       margin: const EdgeInsets.all(16),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        'Последний код: $_lastScannedCode',
-                        style: const TextStyle(color: Colors.white),
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(12)),
+                      child: Text('Последний код: $_lastScannedCode', style: const TextStyle(color: Colors.white)),
                     ),
                   ),
               ],
@@ -180,15 +161,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'Для сканирования нужен доступ к камере',
-                      textAlign: TextAlign.center,
-                    ),
+                    const Text('Для сканирования нужен доступ к камере', textAlign: TextAlign.center),
                     const SizedBox(height: 12),
-                    ElevatedButton(
-                      onPressed: _requestCameraPermission,
-                      child: const Text('Запросить доступ'),
-                    ),
+                    ElevatedButton(onPressed: _requestCameraPermission, child: const Text('Запросить доступ')),
                   ],
                 ),
               ),
