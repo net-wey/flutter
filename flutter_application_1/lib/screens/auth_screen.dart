@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/user.dart';
 import '../providers/app_state.dart';
+import '../widgets/auth/auth_form_card.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -32,20 +33,28 @@ class _AuthScreenState extends State<AuthScreen> {
     });
 
     final appState = context.read<AppState>();
-    bool success;
 
     if (_isLogin) {
-      success = await appState.login(_emailCtrl.text.trim(), _passCtrl.text.trim());
-      if (!success) {
+      final result = await appState.login(_emailCtrl.text.trim(), _passCtrl.text.trim());
+      if (!result.success) {
         setState(() {
           _errorMessage = 'Неверный email или пароль';
           _isSubmitting = false;
         });
+        return;
+      }
+
+      if (mounted && result.message != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message!)));
+      }
+
+      if (mounted) {
+        setState(() => _isSubmitting = false);
       }
       return;
     }
 
-    success = await appState.register(
+    final success = await appState.register(
       _emailCtrl.text.trim(),
       _passCtrl.text.trim(),
       _nameCtrl.text.trim(),
@@ -66,73 +75,38 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_isLogin ? 'Вход' : 'Регистрация')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (!_isLogin)
-                TextFormField(
-                  controller: _nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Имя', border: OutlineInputBorder()),
-                  validator: (val) => val!.isEmpty ? 'Введите имя' : null,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFFE6FFFA), Color(0xFFF8FAFC)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(18),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 430),
+                child: AuthFormCard(
+                  isLogin: _isLogin,
+                  isSubmitting: _isSubmitting,
+                  formKey: _formKey,
+                  nameCtrl: _nameCtrl,
+                  emailCtrl: _emailCtrl,
+                  passCtrl: _passCtrl,
+                  selectedRole: _selectedRole,
+                  onRoleChanged: (role) => setState(() => _selectedRole = role),
+                  onSubmit: _submit,
+                  onToggleMode: () => setState(() {
+                    _isLogin = !_isLogin;
+                    _errorMessage = null;
+                  }),
+                  errorMessage: _errorMessage,
                 ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _emailCtrl,
-                decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
-                validator: (val) => val!.contains('@') ? null : 'Некорректный email',
               ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _passCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Пароль', border: OutlineInputBorder()),
-                validator: (val) => val!.length < 6 ? 'Минимум 6 символов' : null,
-              ),
-              if (!_isLogin) ...[
-                const SizedBox(height: 10),
-                DropdownButtonFormField<UserRole>(
-                  initialValue: _selectedRole,
-                  decoration: const InputDecoration(labelText: 'Роль', border: OutlineInputBorder()),
-                  items: const [
-                    DropdownMenuItem(value: UserRole.user, child: Text('Обычный пользователь')),
-                    DropdownMenuItem(value: UserRole.admin, child: Text('Администратор')),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) setState(() => _selectedRole = value);
-                  },
-                ),
-              ],
-              const SizedBox(height: 20),
-              if (_errorMessage != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-                ),
-              ElevatedButton(
-                onPressed: _isSubmitting ? null : _submit,
-                child: _isSubmitting
-                    ? const SizedBox(
-                        height: 16,
-                        width: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(_isLogin ? 'Войти' : 'Зарегистрироваться'),
-              ),
-              TextButton(
-                onPressed: _isSubmitting
-                    ? null
-                    : () => setState(() {
-                          _isLogin = !_isLogin;
-                          _errorMessage = null;
-                        }),
-                child: Text(_isLogin ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'),
-              )
-            ],
+            ),
           ),
         ),
       ),

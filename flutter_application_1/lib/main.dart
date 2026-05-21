@@ -8,22 +8,20 @@ import 'firebase_options.dart';
 import 'providers/app_state.dart';
 import 'screens/auth_screen.dart';
 import 'screens/catalog_screen.dart';
+import 'theme/app_theme.dart';
+import 'widgets/common/loading_spinner_view.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  CloudRepository? cloudRepository;
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    cloudRepository = CloudRepository(FirebaseFirestore.instance);
-  } catch (_) {
-    cloudRepository = null;
-  }
+  final appState = AppState(
+    cloudRepositoryLoader: () async {
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      return CloudRepository(FirebaseFirestore.instance);
+    },
+  );
 
-  final appState = AppState(cloudRepository: cloudRepository);
-  await appState.init();
+  appState.init();
 
   runApp(
     ChangeNotifierProvider.value(
@@ -39,20 +37,16 @@ class WarehouseApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Складской учет',
-      theme: ThemeData(
-        primarySwatch: Colors.blueGrey,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.blueGrey,
-          foregroundColor: Colors.white,
-          centerTitle: true,
-        ),
-      ),
+      theme: AppTheme.light(),
       home: Consumer<AppState>(
         builder: (context, state, child) {
           if (!state.isInitialized) {
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            return LoadingSpinnerView(
+              fullscreen: true,
+              caption: state.isFirebaseConnecting ? 'Подключение к Firebase...' : 'Загрузка...',
+            );
           }
           return state.isAuthenticated ? const CatalogScreen() : const AuthScreen();
         },

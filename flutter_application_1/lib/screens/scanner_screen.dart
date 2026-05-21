@@ -4,6 +4,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_state.dart';
+import '../widgets/scanner/camera_permission_block.dart';
+import '../widgets/scanner/scanner_overlay.dart';
 import 'product_detail_screen.dart';
 
 class ScannerScreen extends StatefulWidget {
@@ -59,8 +61,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
       }
     }
 
-    if (code == null) return;
-    _handleScannedCode(code);
+    if (code != null) _handleScannedCode(code);
   }
 
   Future<void> _handleScannedCode(String code) async {
@@ -129,45 +130,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
           ? Stack(
               children: [
                 MobileScanner(controller: _scannerController, onDetect: _onDetect),
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Center(
-                      child: Container(
-                        width: 220,
-                        height: 220,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white, width: 2),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                if (_lastScannedCode != null)
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Container(
-                      margin: const EdgeInsets.all(16),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(12)),
-                      child: Text('Последний код: $_lastScannedCode', style: const TextStyle(color: Colors.white)),
-                    ),
-                  ),
+                ScannerOverlay(lastCode: _lastScannedCode),
               ],
             )
-          : Center(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Для сканирования нужен доступ к камере', textAlign: TextAlign.center),
-                    const SizedBox(height: 12),
-                    ElevatedButton(onPressed: _requestCameraPermission, child: const Text('Запросить доступ')),
-                  ],
-                ),
-              ),
-            ),
+          : CameraPermissionBlock(onRequest: _requestCameraPermission),
     );
   }
 
